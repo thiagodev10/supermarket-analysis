@@ -2,70 +2,76 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ======================
-# CONFIGURAÇÃO DA PÁGINA
-# ======================
-st.set_page_config(
-    page_title="Análise Estratégica - Supermercado",
-    layout="wide"
-)
+# Configuração da página
+st.set_page_config(page_title="Supermercado - Análise", layout="wide")
 
-# ======================
-# CARREGAR DADOS
-# ======================
+# Carregar dados
 df = pd.read_csv("supermarket.csv")
-df.columns = df.columns.str.strip()  # remove espaços invisíveis
+df.columns = df.columns.str.strip()
 
-# ======================
-# TÍTULO
-# ======================
-st.title("📊 Análise Estratégica de Vendas — Supermercado")
+# Título
+st.title("📊 Análise de Vendas do Supermercado")
 
 st.markdown("""
-Dashboard executivo para apoiar **decisões estratégicas**
-sobre **lucro, descontos, categorias e regiões**.
+Este painel apresenta uma análise simples e objetiva
+para apoio à tomada de decisão.
 """)
 
 # ======================
 # KPIs
 # ======================
-st.subheader("📌 Visão Geral do Negócio")
+st.subheader("📌 Indicadores Gerais")
 
-c1, c2, c3, c4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 
-c1.metric("💰 Vendas Totais", f"R$ {df['Sales'].sum():,.0f}")
-c2.metric("📈 Lucro Total", f"R$ {df['Profit'].sum():,.0f}")
-c3.metric("📦 Quantidade Vendida", int(df['Quantity'].sum()))
-c4.metric(
-    "% Itens com Prejuízo",
-    f"{(df[df['Profit'] < 0].shape[0] / df.shape[0]) * 100:.1f}%"
-)
+col1.metric("💰 Vendas Totais", f"R$ {df['Sales'].sum():,.0f}")
+col2.metric("📈 Lucro Total", f"R$ {df['Profit'].sum():,.0f}")
+col3.metric("📦 Quantidade Vendida", int(df['Quantity'].sum()))
 
 # ======================
 # LUCRO POR CATEGORIA
 # ======================
 st.subheader("💰 Lucro por Categoria")
 
-lucro_categoria = df.groupby("Category")["Profit"].sum().sort_values()
+lucro_categoria = df.groupby("Category")["Profit"].sum()
 
 fig, ax = plt.subplots()
-lucro_categoria.plot(kind="barh", ax=ax)
-ax.set_xlabel("Lucro")
-ax.set_ylabel("Categoria")
+lucro_categoria.plot(kind="bar", ax=ax)
+ax.set_ylabel("Lucro")
 st.pyplot(fig)
 
-st.info("📌 **Decisão:** Priorizar categorias mais rentáveis.")
+# ======================
+# DESCONTO x LUCRO
+# ======================
+st.subheader("🎯 Relação entre Desconto e Lucro")
+
+fig2, ax2 = plt.subplots()
+ax2.scatter(df["Discount"], df["Profit"])
+ax2.axhline(0)
+ax2.set_xlabel("Desconto")
+ax2.set_ylabel("Lucro")
+st.pyplot(fig2)
 
 # ======================
-# SUBCATEGORIAS COM PREJUÍZO
+# REGIÕES
 # ======================
-st.subheader("🚨 Subcategorias com Prejuízo")
+st.subheader("🌍 Lucro por Região")
 
-prejuizo_sub = (
-    df[df["Profit"] < 0]
-    .groupby("Sub-Category")[["Profit", "Quantity"]]
-    .sum()
-    .sort_values("Profit")
-)
+lucro_regiao = df.groupby("Region")["Profit"].sum()
 
-st.dataframe(prejuizo_s_
+fig3, ax3 = plt.subplots()
+lucro_regiao.plot(kind="bar", ax=ax3)
+ax3.set_ylabel("Lucro")
+st.pyplot(fig3)
+
+# ======================
+# CONCLUSÃO
+# ======================
+st.subheader("📌 Conclusões")
+
+st.success("""
+- Categorias possuem desempenho financeiro distinto  
+- Descontos excessivos reduzem o lucro  
+- Algumas regiões são mais rentáveis que outras  
+- Monitorar lucro é essencial para decisões estratégicas  
+""")
