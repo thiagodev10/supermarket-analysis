@@ -15,15 +15,34 @@ st.set_page_config(
 # ======================
 df = pd.read_csv("supermarket.csv")
 
-# Padronizar nomes das colunas
+# NORMALIZAÇÃO FORÇADA DAS COLUNAS
 df.columns = (
     df.columns
+    .astype(str)
     .str.strip()
     .str.lower()
     .str.replace(" ", "_")
     .str.replace("-", "_")
 )
 
+# FAILSAFE: garantir nomes esperados
+if "sales" not in df.columns:
+    df.rename(columns={df.columns[df.columns.str.contains("sale")][0]: "sales"}, inplace=True)
+
+if "profit" not in df.columns:
+    df.rename(columns={df.columns[df.columns.str.contains("profit")][0]: "profit"}, inplace=True)
+
+if "quantity" not in df.columns:
+    df.rename(columns={df.columns[df.columns.str.contains("quant")][0]: "quantity"}, inplace=True)
+
+if "category" not in df.columns:
+    df.rename(columns={df.columns[df.columns.str.contains("category")][0]: "category"}, inplace=True)
+
+if "sub_category" not in df.columns:
+    df.rename(columns={df.columns[df.columns.str.contains("sub")][0]: "sub_category"}, inplace=True)
+
+if "region" not in df.columns:
+    df.rename(columns={df.columns[df.columns.str.contains("region")][0]: "region"}, inplace=True)
 
 # ======================
 # TÍTULO E CONTEXTO
@@ -31,8 +50,8 @@ df.columns = (
 st.title("📊 Análise Estratégica de Vendas — Supermercado")
 
 st.markdown("""
-Este painel tem como objetivo apoiar **decisões estratégicas**
-da diretoria, analisando **lucro, descontos e desempenho regional**.
+Este painel foi desenvolvido para apoiar **decisões estratégicas**
+da diretoria, analisando **lucro, descontos, categorias e regiões**.
 """)
 
 # ======================
@@ -120,7 +139,7 @@ st.pyplot(fig)
 
 st.info("""
 📍 **Decisão:** Adotar estratégias regionais
-de precificação e desconto.
+de precificação e desconto por região.
 """)
 
 # ======================
@@ -144,8 +163,7 @@ st.success("""
 - Revisar política de descontos por categoria  
 - Reavaliar produtos com alto volume e prejuízo  
 - Adotar estratégias regionais de precificação  
-- Priorizar categorias mais rentáveis  
+- Priorizar categorias com maior margem de lucro  
 - Monitorar margens mensalmente  
 - Criar alertas automáticos de prejuízo  
 """)
-
