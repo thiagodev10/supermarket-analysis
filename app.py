@@ -2,20 +2,28 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Configuração da página
 st.set_page_config(page_title="Supermercado - Análise", layout="wide")
 
-# Carregar dados
+# ======================
+# CARREGAR CSV
+# ======================
 df = pd.read_csv("supermarket.csv")
-df.columns = df.columns.str.strip()
 
-# Título
+# Padronizar nomes das colunas
+df.columns = (
+    df.columns
+    .str.strip()
+    .str.lower()
+    .str.replace(" ", "_")
+)
+
+# DEBUG VISUAL (IMPORTANTE)
+st.write("📄 Colunas carregadas:", df.columns.tolist())
+
+# ======================
+# TÍTULO
+# ======================
 st.title("📊 Análise de Vendas do Supermercado")
-
-st.markdown("""
-Este painel apresenta uma análise simples e objetiva
-para apoio à tomada de decisão.
-""")
 
 # ======================
 # KPIs
@@ -24,16 +32,16 @@ st.subheader("📌 Indicadores Gerais")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("💰 Vendas Totais", f"R$ {df['Sales'].sum():,.0f}")
-col2.metric("📈 Lucro Total", f"R$ {df['Profit'].sum():,.0f}")
-col3.metric("📦 Quantidade Vendida", int(df['Quantity'].sum()))
+col1.metric("💰 Vendas Totais", f"R$ {df['sales'].sum():,.0f}")
+col2.metric("📈 Lucro Total", f"R$ {df['profit'].sum():,.0f}")
+col3.metric("📦 Quantidade Vendida", int(df['quantity'].sum()))
 
 # ======================
 # LUCRO POR CATEGORIA
 # ======================
 st.subheader("💰 Lucro por Categoria")
 
-lucro_categoria = df.groupby("Category")["Profit"].sum()
+lucro_categoria = df.groupby("category")["profit"].sum()
 
 fig, ax = plt.subplots()
 lucro_categoria.plot(kind="bar", ax=ax)
@@ -43,10 +51,10 @@ st.pyplot(fig)
 # ======================
 # DESCONTO x LUCRO
 # ======================
-st.subheader("🎯 Relação entre Desconto e Lucro")
+st.subheader("🎯 Desconto vs Lucro")
 
 fig2, ax2 = plt.subplots()
-ax2.scatter(df["Discount"], df["Profit"])
+ax2.scatter(df["discount"], df["profit"])
 ax2.axhline(0)
 ax2.set_xlabel("Desconto")
 ax2.set_ylabel("Lucro")
@@ -57,7 +65,7 @@ st.pyplot(fig2)
 # ======================
 st.subheader("🌍 Lucro por Região")
 
-lucro_regiao = df.groupby("Region")["Profit"].sum()
+lucro_regiao = df.groupby("region")["profit"].sum()
 
 fig3, ax3 = plt.subplots()
 lucro_regiao.plot(kind="bar", ax=ax3)
@@ -70,8 +78,8 @@ st.pyplot(fig3)
 st.subheader("📌 Conclusões")
 
 st.success("""
-- Categorias possuem desempenho financeiro distinto  
-- Descontos excessivos reduzem o lucro  
-- Algumas regiões são mais rentáveis que outras  
-- Monitorar lucro é essencial para decisões estratégicas  
+- Existem categorias mais rentáveis que outras  
+- Descontos elevados impactam negativamente o lucro  
+- Regiões possuem comportamentos distintos  
+- Monitorar indicadores evita prejuízo recorrente  
 """)
