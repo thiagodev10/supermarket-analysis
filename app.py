@@ -15,12 +15,15 @@ st.set_page_config(
 # ======================
 df = pd.read_csv("supermarket.csv")
 
-# Padronizar colunas (simples)
+# Padronizar nomes das colunas
 df.columns = (
     df.columns
+    .str.strip()
     .str.lower()
     .str.replace(" ", "_")
+    .str.replace("-", "_")
 )
+
 
 # ======================
 # TÍTULO E CONTEXTO
