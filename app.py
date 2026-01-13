@@ -1,85 +1,159 @@
+# app.py
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Supermercado - Análise", layout="wide")
-
-# ======================
-# CARREGAR CSV
-# ======================
-df = pd.read_csv("supermarket.csv")
-
-# Padronizar nomes das colunas
-df.columns = (
-    df.columns
-    .str.strip()
-    .str.lower()
-    .str.replace(" ", "_")
+# Configuração da página
+st.set_page_config(
+    page_title="Dashboard Supermercado",
+    page_icon="🛒",
+    layout="wide"
 )
 
-# DEBUG VISUAL (IMPORTANTE)
-st.write("📄 Colunas carregadas:", df.columns.tolist())
+# Título
+st.title("📊 Dashboard de Vendas - Supermercado")
 
-# ======================
-# TÍTULO
-# ======================
-st.title("📊 Análise de Vendas do Supermercado")
+# Carregar dados
+@st.cache_data
+def load_data():
+    # Certifique-se que o arquivo está na mesma pasta
+    df = pd.read_csv('supermarket.csv')
+    return df
 
-# ======================
-# KPIs
-# ======================
-st.subheader("📌 Indicadores Gerais")
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric("💰 Vendas Totais", f"R$ {df['sales'].sum():,.0f}")
-col2.metric("📈 Lucro Total", f"R$ {df['profit'].sum():,.0f}")
-col3.metric("📦 Quantidade Vendida", int(df['quantity'].sum()))
-
-# ======================
-# LUCRO POR CATEGORIA
-# ======================
-st.subheader("💰 Lucro por Categoria")
-
-lucro_categoria = df.groupby("category")["profit"].sum()
-
-fig, ax = plt.subplots()
-lucro_categoria.plot(kind="bar", ax=ax)
-ax.set_ylabel("Lucro")
-st.pyplot(fig)
-
-# ======================
-# DESCONTO x LUCRO
-# ======================
-st.subheader("🎯 Desconto vs Lucro")
-
-fig2, ax2 = plt.subplots()
-ax2.scatter(df["discount"], df["profit"])
-ax2.axhline(0)
-ax2.set_xlabel("Desconto")
-ax2.set_ylabel("Lucro")
-st.pyplot(fig2)
-
-# ======================
-# REGIÕES
-# ======================
-st.subheader("🌍 Lucro por Região")
-
-lucro_regiao = df.groupby("region")["profit"].sum()
-
-fig3, ax3 = plt.subplots()
-lucro_regiao.plot(kind="bar", ax=ax3)
-ax3.set_ylabel("Lucro")
-st.pyplot(fig3)
-
-# ======================
-# CONCLUSÃO
-# ======================
-st.subheader("📌 Conclusões")
-
-st.success("""
-- Existem categorias mais rentáveis que outras  
-- Descontos elevados impactam negativamente o lucro  
-- Regiões possuem comportamentos distintos  
-- Monitorar indicadores evita prejuízo recorrente  
-""")
+try:
+    df = load_data()
+    
+    # Mostrar dados brutos (opcional)
+    with st.expander("👀 Visualizar Dados Brutos"):
+        st.dataframe(df)
+    
+    # Métricas principais
+    st.subheader("📈 Métricas Principais")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # CORREÇÃO AQUI: usar nomes corretos das colunas
+    with col1:
+        # Usar 'vendas' em vez de 'sales'
+        total_vendas = df['vendas'].sum()
+        st.metric("💰 Vendas Totais", f"R$ {total_vendas:,.2f}")
+    
+    with col2:
+        # Usar 'lucro' em vez de 'profit'
+        total_lucro = df['lucro'].sum()
+        st.metric("💵 Lucro Total", f"R$ {total_lucro:,.2f}")
+    
+    with col3:
+        # Calcular margem média
+        margem_media = df['margem'].mean() * 100
+        st.metric("📊 Margem Média", f"{margem_media:.1f}%")
+    
+    with col4:
+        total_transacoes = len(df)
+        st.metric("🛒 Total de Transações", f"{total_transacoes:,}")
+    
+    # Gráficos
+    st.subheader("📊 Análise por Categoria")
+    
+    # 1. Vendas por Categoria
+    fig1 = px.bar(
+        df.groupby('categoria')['vendas'].sum().reset_index(),
+        x='categoria',
+        y='vendas',
+        title='Vendas por Categoria',
+        color='categoria'
+    )
+    
+    # 2. Lucro por Segmento
+    fig2 = px.pie(
+        df.groupby('segmento')['lucro'].sum().reset_index(),
+        values='lucro',
+        names='segmento',
+        title='Distribuição de Lucro por Segmento'
+    )
+    
+    # 3. Vendas por Região
+    fig3 = px.treemap(
+        df,
+        path=['regiao', 'estado', 'cidade'],
+        values='vendas',
+        title='Vendas por Localização (Região > Estado > Cidade)'
+    )
+    
+    # 4. Margem vs Vendas
+    fig4 = px.scatter(
+        df,
+        x='vendas',
+        y='lucro',
+        color='categoria',
+        size='quantidade',
+        hover_data=['subcategoria'],
+        title='Relação entre Vendas e Lucro'
+    )
+    
+    # Layout dos gráficos
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig4, use_container_width=True)
+    
+    # Filtros interativos
+    st.sidebar.header("🔍 Filtros")
+    
+    # Filtro por região
+    regioes = df['regiao'].unique()
+    regiao_selecionada = st.sidebar.multiselect(
+        "Selecione a Região",
+        options=regioes,
+        default=regioes
+    )
+    
+    # Filtro por categoria
+    categorias = df['categoria'].unique()
+    categoria_selecionada = st.sidebar.multiselect(
+        "Selecione a Categoria",
+        options=categorias,
+        default=categorias
+    )
+    
+    # Filtro por segmento
+    segmentos = df['segmento'].unique()
+    segmento_selecionado = st.sidebar.multiselect(
+        "Selecione o Segmento",
+        options=segmentos,
+        default=segmentos
+    )
+    
+    # Aplicar filtros
+    if regiao_selecionada:
+        df_filtrado = df[df['regiao'].isin(regiao_selecionada)]
+    else:
+        df_filtrado = df.copy()
+    
+    if categoria_selecionada:
+        df_filtrado = df_filtrado[df_filtrado['categoria'].isin(categoria_selecionada)]
+    
+    if segmento_selecionado:
+        df_filtrado = df_filtrado[df_filtrado['segmento'].isin(segmento_selecionado)]
+    
+    # Tabela com dados filtrados
+    st.subheader("📋 Dados Filtrados")
+    st.dataframe(df_filtrado)
+    
+    # Resumo estatístico
+    st.subheader("📊 Estatísticas Descritivas")
+    st.dataframe(df_filtrado[['vendas', 'lucro', 'margem', 'quantidade']].describe())
+    
+except FileNotFoundError:
+    st.error("❌ Arquivo 'supermarket.csv' não encontrado!")
+    st.info("Certifique-se de que o arquivo está na mesma pasta que o app.py")
+except KeyError as e:
+    st.error(f"❌ Erro: Coluna não encontrada - {e}")
+    st.info("Verifique os nomes das colunas no arquivo CSV. As colunas devem ser:")
+    st.code("modo_envio, segmento, pais, cidade, estado, cep, regiao, categoria, subcategoria, vendas, quantidade, desconto, lucro, margem")
+except Exception as e:
+    st.error(f"❌ Ocorreu um erro: {e}")
