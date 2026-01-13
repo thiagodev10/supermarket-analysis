@@ -15,34 +15,22 @@ st.set_page_config(
 # ======================
 df = pd.read_csv("supermarket.csv")
 
-# NORMALIZAÇÃO FORÇADA DAS COLUNAS
-df.columns = (
-    df.columns
-    .astype(str)
-    .str.strip()
-    .str.lower()
-    .str.replace(" ", "_")
-    .str.replace("-", "_")
-)
-
-# FAILSAFE: garantir nomes esperados
-if "sales" not in df.columns:
-    df.rename(columns={df.columns[df.columns.str.contains("sale")][0]: "sales"}, inplace=True)
-
-if "profit" not in df.columns:
-    df.rename(columns={df.columns[df.columns.str.contains("profit")][0]: "profit"}, inplace=True)
-
-if "quantity" not in df.columns:
-    df.rename(columns={df.columns[df.columns.str.contains("quant")][0]: "quantity"}, inplace=True)
-
-if "category" not in df.columns:
-    df.rename(columns={df.columns[df.columns.str.contains("category")][0]: "category"}, inplace=True)
-
-if "sub_category" not in df.columns:
-    df.rename(columns={df.columns[df.columns.str.contains("sub")][0]: "sub_category"}, inplace=True)
-
-if "region" not in df.columns:
-    df.rename(columns={df.columns[df.columns.str.contains("region")][0]: "region"}, inplace=True)
+# RENOMEAR COLUNAS (EXPLÍCITO E SEGURO)
+df = df.rename(columns={
+    "Ship Mode": "ship_mode",
+    "Segment": "segment",
+    "Country": "country",
+    "City": "city",
+    "State": "state",
+    "Postal Code": "postal_code",
+    "Region": "region",
+    "Category": "category",
+    "Sub-Category": "sub_category",
+    "Sales": "sales",
+    "Quantity": "quantity",
+    "Discount": "discount",
+    "Profit": "profit"
+})
 
 # ======================
 # TÍTULO E CONTEXTO
