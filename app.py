@@ -15,46 +15,32 @@ st.set_page_config(
 # ======================
 df = pd.read_csv("supermarket.csv")
 
-# RENOMEAR COLUNAS (EXPLÍCITO E SEGURO)
-df = df.rename(columns={
-    "Ship Mode": "ship_mode",
-    "Segment": "segment",
-    "Country": "country",
-    "City": "city",
-    "State": "state",
-    "Postal Code": "postal_code",
-    "Region": "region",
-    "Category": "category",
-    "Sub-Category": "sub_category",
-    "Sales": "sales",
-    "Quantity": "quantity",
-    "Discount": "discount",
-    "Profit": "profit"
-})
+# Remover espaços invisíveis (segurança)
+df.columns = df.columns.str.strip()
 
 # ======================
-# TÍTULO E CONTEXTO
+# TÍTULO
 # ======================
 st.title("📊 Análise Estratégica de Vendas — Supermercado")
 
 st.markdown("""
-Este painel foi desenvolvido para apoiar **decisões estratégicas**
-da diretoria, analisando **lucro, descontos, categorias e regiões**.
+Dashboard executivo para análise de **lucro, descontos,
+categorias e desempenho regional**.
 """)
 
 # ======================
-# KPI - VISÃO GERAL
+# KPIs
 # ======================
-st.subheader("📌 Visão Geral do Negócio")
+st.subheader("📌 Visão Geral")
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-col1.metric("💰 Vendas Totais", f"R$ {df['sales'].sum():,.0f}")
-col2.metric("📈 Lucro Total", f"R$ {df['profit'].sum():,.0f}")
-col3.metric("📦 Quantidade Vendida", int(df['quantity'].sum()))
-col4.metric(
+c1.metric("💰 Vendas Totais", f"R$ {df['Sales'].sum():,.0f}")
+c2.metric("📈 Lucro Total", f"R$ {df['Profit'].sum():,.0f}")
+c3.metric("📦 Quantidade Vendida", int(df['Quantity'].sum()))
+c4.metric(
     "% Itens com Prejuízo",
-    f"{(df[df['profit'] < 0].shape[0] / df.shape[0]) * 100:.1f}%"
+    f"{(df[df['Profit'] < 0].shape[0] / df.shape[0]) * 100:.1f}%"
 )
 
 # ======================
@@ -62,96 +48,66 @@ col4.metric(
 # ======================
 st.subheader("💰 Lucro por Categoria")
 
-lucro_categoria = df.groupby("category")["profit"].sum().sort_values()
+lucro_categoria = df.groupby("Category")["Profit"].sum().sort_values()
 
 fig, ax = plt.subplots()
 lucro_categoria.plot(kind="barh", ax=ax)
 ax.set_xlabel("Lucro")
-ax.set_ylabel("Categoria")
 st.pyplot(fig)
 
-st.info("""
-📌 **Decisão:** Priorizar categorias com maior margem de lucro
-e evitar descontos excessivos nessas áreas.
-""")
+st.info("📌 **Decisão:** Priorizar categorias mais rentáveis.")
 
 # ======================
-# PREJUÍZO POR SUBCATEGORIA
+# SUBCATEGORIAS COM PREJUÍZO
 # ======================
 st.subheader("🚨 Subcategorias com Prejuízo")
 
-prejuizo_subcat = (
-    df[df["profit"] < 0]
-    .groupby("sub_category")[["profit", "quantity"]]
+prejuizo = (
+    df[df["Profit"] < 0]
+    .groupby("Sub-Category")[["Profit", "Quantity"]]
     .sum()
-    .sort_values("profit")
+    .sort_values("Profit")
 )
 
-st.dataframe(prejuizo_subcat.head(10))
+st.dataframe(prejuizo.head(10))
 
-st.warning("""
-❗ **Ação:** Reavaliar produtos com alto volume
-e prejuízo recorrente (preço, custo ou desconto).
-""")
+st.warning("❗ **Ação:** Reavaliar produtos com prejuízo recorrente.")
 
 # ======================
 # DESCONTO x LUCRO
 # ======================
-st.subheader("🎯 Impacto dos Descontos no Lucro")
+st.subheader("🎯 Impacto dos Descontos")
 
 fig, ax = plt.subplots()
-ax.scatter(df["discount"], df["profit"], alpha=0.5)
+ax.scatter(df["Discount"], df["Profit"], alpha=0.5)
 ax.axhline(0)
 ax.set_xlabel("Desconto")
 ax.set_ylabel("Lucro")
 st.pyplot(fig)
 
-st.error("""
-📉 Descontos elevados estão fortemente associados a prejuízo.
-
-➡️ **Decisão:** Revisar política de descontos,
-aplicando limites por categoria.
-""")
+st.error("📉 **Decisão:** Limitar descontos por categoria.")
 
 # ======================
 # LUCRO POR REGIÃO
 # ======================
 st.subheader("🌍 Lucro por Região")
 
-lucro_regiao = df.groupby("region")["profit"].sum()
+lucro_regiao = df.groupby("Region")["Profit"].sum()
 
 fig, ax = plt.subplots()
 lucro_regiao.plot(kind="bar", ax=ax)
 ax.set_ylabel("Lucro")
 st.pyplot(fig)
 
-st.info("""
-📍 **Decisão:** Adotar estratégias regionais
-de precificação e desconto por região.
-""")
+st.info("📍 **Decisão:** Estratégias regionais de precificação.")
 
 # ======================
-# ALERTA DE PREJUÍZO
+# ALERTA
 # ======================
-st.subheader("🚨 Monitoramento de Risco")
+st.subheader("🚨 Alerta Financeiro")
 
-prejuizo_total = df[df["profit"] < 0]["profit"].sum()
+prejuizo_total = df[df["Profit"] < 0]["Profit"].sum()
 
 if prejuizo_total < -50000:
-    st.error(f"🚨 ALERTA: Prejuízo acumulado de R$ {prejuizo_total:,.0f}")
+    st.error(f"🚨 Prejuízo acumulado: R$ {prejuizo_total:,.0f}")
 else:
-    st.success("✅ Prejuízo sob controle no período analisado")
-
-# ======================
-# CONCLUSÃO
-# ======================
-st.subheader("📌 Recomendações Executivas")
-
-st.success("""
-- Revisar política de descontos por categoria  
-- Reavaliar produtos com alto volume e prejuízo  
-- Adotar estratégias regionais de precificação  
-- Priorizar categorias com maior margem de lucro  
-- Monitorar margens mensalmente  
-- Criar alertas automáticos de prejuízo  
-""")
