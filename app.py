@@ -1,7 +1,4 @@
-# Write a fully corrected app.py with robust CSV reading (encoding + delimiter), PT-BR column mapping, and safer parsing.
-from pathlib import Path
-
-app_code_fixed = '''import os
+import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -66,8 +63,8 @@ def _looks_mojibake(df_local: pd.DataFrame) -> bool:
 @st.cache_data(show_spinner=False)
 def load_data(csv_path: str) -> pd.DataFrame:
     # Try common encodings and delimiters
-    encodings_to_try = ["utf-8", "utf-8-sig", "latin1", "cp1252"]
-    seps_to_try = [",", ";", "\	"]
+    encodings_to_try = ["utf-8", "utf-8-sig", "latin1", "cp1252", "iso-8859-1"]
+    seps_to_try = [",", ";", "\t", "|", " "]
 
     best_df = None
     best_score = None
@@ -75,7 +72,7 @@ def load_data(csv_path: str) -> pd.DataFrame:
     for enc in encodings_to_try:
         for sep_val in seps_to_try:
             try:
-                df_try = pd.read_csv(csv_path, encoding=enc, sep=sep_val)
+                df_try = pd.read_csv(csv_path, encoding=enc, sep=sep_val, engine='python', on_bad_lines='skip')
                 if df_try.shape[1] <= 1:
                     continue
 
@@ -224,22 +221,57 @@ with c2:
     st.plotly_chart(fig_reg, use_container_width=True)
 
 st.subheader("Desconto vs lucro")
-fig_scatter = px.scatter(
-    f,
-    x="discount",
-    y="profit",
-    color="category",
-    hover_data=["region", "sales", "quantity"],
-    opacity=0.7,
-    labels={"discount": "Desconto", "profit": "Lucro"},
-    trendline="ols",
-)
-fig_scatter.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-st.plotly_chart(fig_scatter, use_container_width=True)
+
+# Verificar se statsmodels está disponível para trendline OLS
+try:
+    import statsmodels.api as sm
+    has_statsmodels = True
+except ImportError:
+    has_statsmodels = False
+    st.warning("⚠️ A funcionalidade de linha de tendência (OLS) não está disponível porque a biblioteca 'statsmodels' não está instalada. Instale com: `pip install statsmodels`")
+
+# Criar gráfico de scatter com ou sem trendline dependendo da disponibilidade do statsmodels
+try:
+    if has_statsmodels:
+        fig_scatter = px.scatter(
+            f,
+            x="discount",
+            y="profit",
+            color="category",
+            hover_data=["region", "sales", "quantity"],
+            opacity=0.7,
+            labels={"discount": "Desconto", "profit": "Lucro"},
+            trendline="ols",
+        )
+    else:
+        fig_scatter = px.scatter(
+            f,
+            x="discount",
+            y="profit",
+            color="category",
+            hover_data=["region", "sales", "quantity"],
+            opacity=0.7,
+            labels={"discount": "Desconto", "profit": "Lucro"},
+        )
+    
+    fig_scatter.update_layout(margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(fig_scatter, use_container_width=True)
+    
+except Exception as e:
+    # Fallback se houver algum outro erro
+    st.error(f"Erro ao criar gráfico de dispersão: {str(e)}")
+    # Criar gráfico mais simples sem trendline
+    fig_scatter = px.scatter(
+        f,
+        x="discount",
+        y="profit",
+        color="category",
+        hover_data=["region", "sales", "quantity"],
+        opacity=0.7,
+        labels={"discount": "Desconto", "profit": "Lucro"},
+    )
+    fig_scatter.update_layout(margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(fig_scatter, use_container_width=True)
 
 with st.expander("Ver dados filtrados"):
     st.dataframe(f, use_container_width=True)
-'''
-
-Path('app.py').write_text(app_code_fixed, encoding='utf-8')
-print('app.py')
