@@ -76,7 +76,7 @@ def format_brl(val: float) -> str:
     return "R$ " + txt
 
 # ============================================================================
-# ANÁLISES EXECUTIVAS
+# ANÁLISES EXECUTIVAS (ATUALIZADAS SEM MATPLOTLIB)
 # ============================================================================
 
 def analyze_financial_health(df):
@@ -237,7 +237,7 @@ def analyze_discount_impact(df):
         else:
             st.info("ℹ️ Descontos têm correlação neutra com lucro")
         
-        # Scatter plot
+        # Scatter plot sem trendline (evita statsmodels)
         fig = px.scatter(
             df.sample(min(1000, len(df))),
             x='discount',
@@ -245,13 +245,12 @@ def analyze_discount_impact(df):
             size='quantity',
             color='category',
             title="Relação Desconto vs Lucro",
-            trendline="ols" if len(df) > 50 else None,
             opacity=0.6
         )
         st.plotly_chart(fig, use_container_width=True)
 
 def analyze_regional_differences(df):
-    """5. Diferenças regionais"""
+    """5. Diferenças regionais (CORRIGIDO - sem matplotlib)"""
     st.subheader("🌍 Análise Regional Comparativa")
     
     regional_stats = df.groupby('region').agg({
@@ -264,18 +263,54 @@ def analyze_regional_differences(df):
     regional_stats['margin'] = (regional_stats[('profit', 'sum')] / 
                                regional_stats[('sales', 'sum')]) * 100
     
-    # Tabela comparativa
-    st.dataframe(
-        regional_stats.style
-        .background_gradient(subset=[('margin', '')], cmap='RdYlGn')
-        .format({
-            ('sales', 'sum'): lambda x: format_brl(x),
-            ('profit', 'sum'): lambda x: format_brl(x),
-            ('margin', ''): '{:.1f}%',
-            ('discount', 'mean'): '{:.1f}%'
-        }),
-        use_container_width=True
-    )
+    # Simplificar o MultiIndex para exibição
+    regional_stats.columns = ['_'.join(col).strip() for col in regional_stats.columns.values]
+    regional_stats = regional_stats.reset_index()
+    
+    # Renomear colunas para melhor legibilidade
+    rename_dict = {
+        'sales_sum': 'Vendas Totais',
+        'sales_mean': 'Venda Média',
+        'profit_sum': 'Lucro Total',
+        'profit_mean': 'Lucro Médio',
+        'quantity_sum': 'Quantidade Total',
+        'discount_mean': 'Desconto Médio',
+        'margin': 'Margem %'
+    }
+    
+    display_df = regional_stats.rename(columns=rename_dict)
+    
+    # Criar visualização com Plotly em vez de estilo do pandas
+    fig = go.Figure(data=[go.Table(
+        header=dict(
+            values=list(display_df.columns),
+            fill_color='lightblue',
+            align='left',
+            font=dict(size=12)
+        ),
+        cells=dict(
+            values=[display_df[col] for col in display_df.columns],
+            fill_color='white',
+            align='left',
+            # Formatar valores
+            format=[
+                None,  # Região
+                [None, format_brl(x) for x in display_df['Vendas Totais']],  # Vendas
+                [None, format_brl(x) for x in display_df['Venda Média']],  # Venda média
+                [None, format_brl(x) for x in display_df['Lucro Total']],  # Lucro
+                [None, format_brl(x) for x in display_df['Lucro Médio']],  # Lucro médio
+                [None, '{:,.0f}'.format(x).replace(',', '.') for x in display_df['Quantidade Total']],  # Quantidade
+                [None, '{:.1f}%'.format(x) for x in display_df['Desconto Médio']],  # Desconto
+                [None, ['🟢 {:.1f}%'.format(x) if x > 10 else 
+                        '🟡 {:.1f}%'.format(x) if x > 0 else 
+                        '🔴 {:.1f}%'.format(x) for x in display_df['Margem %']]]  # Margem com cores
+            ],
+            font=dict(size=11)
+        )
+    )])
+    
+    fig.update_layout(title="Comparativo Regional", height=400)
+    st.plotly_chart(fig, use_container_width=True)
     
     # Mapa de calor regional
     pivot_table = df.pivot_table(
@@ -326,14 +361,15 @@ def generate_executive_recommendations(df, total_profit, avg_margin):
         'profit': 'sum',
         'quantity': 'sum'
     })
-    optimal_discount = discount_analysis['profit'].idxmax()
-    if isinstance(optimal_discount, pd.Interval):
-        recommendations.append({
-            "priority": "MÉDIA",
-            "title": "Otimizar Estratégia de Descontos",
-            "description": f"Faixa de desconto mais lucrativa: {optimal_discount.left:.0f}-{optimal_discount.right:.0f}%",
-            "action": "Focar promoções nesta faixa"
-        })
+    if not discount_analysis.empty:
+        optimal_discount = discount_analysis['profit'].idxmax()
+        if isinstance(optimal_discount, pd.Interval):
+            recommendations.append({
+                "priority": "MÉDIA",
+                "title": "Otimizar Estratégia de Descontos",
+                "description": f"Faixa de desconto mais lucrativa: {optimal_discount.left:.0f}-{optimal_discount.right:.0f}%",
+                "action": "Focar promoções nesta faixa"
+            })
     
     # 4. Melhores performers
     top_category = df.groupby('category')['profit'].sum().idxmax()
@@ -345,6 +381,15 @@ def generate_executive_recommendations(df, total_profit, avg_margin):
         "description": f"Melhor categoria: {top_category}, Melhor região: {top_region}",
         "action": "Replicar estratégias bem-sucedidas"
     })
+    
+    # 5. Se houver poucas recomendações, adicionar padrão
+    if len(recommendations) < 3:
+        recommendations.append({
+            "priority": "MÉDIA",
+            "title": "Monitorar Performance",
+            "description": "Manter acompanhamento contínuo dos KPIs",
+            "action": "Estabelecer reuniões semanais de análise"
+        })
     
     # Exibir recomendações
     for i, rec in enumerate(recommendations, 1):
