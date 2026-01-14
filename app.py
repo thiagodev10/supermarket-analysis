@@ -280,36 +280,56 @@ def analyze_regional_differences(df):
     
     display_df = regional_stats.rename(columns=rename_dict)
     
-    # Criar visualização com Plotly em vez de estilo do pandas
+    # Preparar os valores formatados para a tabela
+    formatted_values = []
+    for col in display_df.columns:
+        if col == 'region':
+            formatted_values.append(display_df[col].tolist())
+        elif col == 'Vendas Totais':
+            formatted_values.append([format_brl(x) for x in display_df[col]])
+        elif col == 'Venda Média':
+            formatted_values.append([format_brl(x) for x in display_df[col]])
+        elif col == 'Lucro Total':
+            formatted_values.append([format_brl(x) for x in display_df[col]])
+        elif col == 'Lucro Médio':
+            formatted_values.append([format_brl(x) for x in display_df[col]])
+        elif col == 'Quantidade Total':
+            formatted_values.append(['{:,.0f}'.format(x).replace(',', '.') for x in display_df[col]])
+        elif col == 'Desconto Médio':
+            formatted_values.append(['{:.1f}%'.format(x) for x in display_df[col]])
+        elif col == 'Margem %':
+            # Adicionar emojis de cor baseados na margem
+            margin_cells = []
+            for x in display_df[col]:
+                if x > 10:
+                    margin_cells.append(f'🟢 {x:.1f}%')
+                elif x > 0:
+                    margin_cells.append(f'🟡 {x:.1f}%')
+                else:
+                    margin_cells.append(f'🔴 {x:.1f}%')
+            formatted_values.append(margin_cells)
+    
+    # Criar visualização com Plotly
     fig = go.Figure(data=[go.Table(
         header=dict(
             values=list(display_df.columns),
             fill_color='lightblue',
             align='left',
-            font=dict(size=12)
+            font=dict(size=12, color='black')
         ),
         cells=dict(
-            values=[display_df[col] for col in display_df.columns],
+            values=formatted_values,
             fill_color='white',
             align='left',
-            # Formatar valores
-            format=[
-                None,  # Região
-                [None, format_brl(x) for x in display_df['Vendas Totais']],  # Vendas
-                [None, format_brl(x) for x in display_df['Venda Média']],  # Venda média
-                [None, format_brl(x) for x in display_df['Lucro Total']],  # Lucro
-                [None, format_brl(x) for x in display_df['Lucro Médio']],  # Lucro médio
-                [None, '{:,.0f}'.format(x).replace(',', '.') for x in display_df['Quantidade Total']],  # Quantidade
-                [None, '{:.1f}%'.format(x) for x in display_df['Desconto Médio']],  # Desconto
-                [None, ['🟢 {:.1f}%'.format(x) if x > 10 else 
-                        '🟡 {:.1f}%'.format(x) if x > 0 else 
-                        '🔴 {:.1f}%'.format(x) for x in display_df['Margem %']]]  # Margem com cores
-            ],
-            font=dict(size=11)
+            font=dict(size=11, color='black')
         )
     )])
     
-    fig.update_layout(title="Comparativo Regional", height=400)
+    fig.update_layout(
+        title="Comparativo Regional",
+        height=400,
+        margin=dict(l=10, r=10, t=50, b=10)
+    )
     st.plotly_chart(fig, use_container_width=True)
     
     # Mapa de calor regional
