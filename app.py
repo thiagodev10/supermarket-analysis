@@ -76,7 +76,7 @@ def format_brl(val: float) -> str:
     return "R$ " + txt
 
 # ============================================================================
-# ANÁLISES EXECUTIVAS (ATUALIZADAS SEM MATPLOTLIB)
+# ANÁLISES EXECUTIVAS
 # ============================================================================
 
 def analyze_financial_health(df):
@@ -158,38 +158,149 @@ def analyze_profit_sources(df):
         st.plotly_chart(fig, use_container_width=True)
 
 def analyze_loss_sources(df):
-    """3. Onde o prejuízo está acontecendo"""
+    """3. Onde o prejuízo está acontecendo - VERSÃO CORRIGIDA"""
     st.subheader("⚠️ Pontos de Atenção (Prejuízos)")
     
-    loss_categories = df.groupby('category').filter(lambda x: x['profit'].sum() < 0)
-    loss_regions = df.groupby('region').filter(lambda x: x['profit'].sum() < 0)
+    # Calcular lucro por categoria
+    category_profit = df.groupby('category')['profit'].sum()
+    region_profit = df.groupby('region')['profit'].sum()
+    
+    # Encontrar categorias e regiões com prejuízo
+    loss_categories = category_profit[category_profit < 0]
+    loss_regions = region_profit[region_profit < 0]
     
     if not loss_categories.empty:
-        st.warning(f"**Categorias com Prejuízo:** {len(loss_categories['category'].unique())}")
-        loss_by_cat = loss_categories.groupby('category')['profit'].sum().sort_values()
+        st.warning(f"🚨 **Categorias com Prejuízo:** {len(loss_categories)} categorias")
         
+        # Criar DataFrame para visualização
+        loss_cat_df = loss_categories.reset_index()
+        loss_cat_df.columns = ['Categoria', 'Prejuízo']
+        loss_cat_df = loss_cat_df.sort_values('Prejuízo')
+        
+        # Gráfico de barras
         fig = px.bar(
-            x=loss_by_cat.index,
-            y=loss_by_cat.values,
+            loss_cat_df,
+            x='Categoria',
+            y='Prejuízo',
             title="Prejuízo por Categoria",
-            labels={'x': 'Categoria', 'y': 'Prejuízo'},
-            color=loss_by_cat.values,
-            color_continuous_scale='Reds_r'
+            labels={'Categoria': 'Categoria', 'Prejuízo': 'Prejuízo (R$)'},
+            color='Prejuízo',
+            color_continuous_scale='Reds',
+            text=[format_brl(abs(x)) for x in loss_cat_df['Prejuízo']]
+        )
+        fig.update_traces(textposition='outside')
+        fig.update_layout(
+            yaxis_title="Prejuízo (R$)",
+            showlegend=False
         )
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Lista detalhada
+        st.write("**Detalhamento por categoria:**")
+        for cat, loss in loss_categories.items():
+            category_data = df[df['category'] == cat]
+            total_sales = category_data['sales'].sum()
+            margin = (loss / total_sales * 100) if total_sales > 0 else 0
+            st.write(f"• **{cat}**: Prejuízo de {format_brl(abs(loss))} (Margem: {margin:.1f}%)")
+            st.caption(f"  Transações: {len(category_data)} | Vendas totais: {format_brl(total_sales)}")
+    else:
+        st.success("✅ Nenhuma categoria opera com prejuízo!")
+    
+    st.divider()
     
     if not loss_regions.empty:
-        st.error(f"**Regiões com Prejuízo:** {len(loss_regions['region'].unique())}")
-        loss_by_reg = loss_regions.groupby('region')['profit'].sum().sort_values()
+        st.error(f"🔥 **Regiões com Prejuízo:** {len(loss_regions)} regiões")
         
-        for reg, loss in loss_by_reg.items():
-            st.write(f"• **{reg}**: Prejuízo de {format_brl(abs(loss))}")
+        # Criar DataFrame para visualização
+        loss_reg_df = loss_regions.reset_index()
+        loss_reg_df.columns = ['Região', 'Prejuízo']
+        loss_reg_df = loss_reg_df.sort_values('Prejuízo')
+        
+        # Gráfico de barras
+        fig = px.bar(
+            loss_reg_df,
+            x='Região',
+            y='Prejuízo',
+            title="Prejuízo por Região",
+            labels={'Região': 'Região', 'Prejuízo': 'Prejuízo (R$)'},
+            color='Prejuízo',
+            color_continuous_scale='Reds',
+            text=[format_brl(abs(x)) for x in loss_reg_df['Prejuízo']]
+        )
+        fig.update_traces(textposition='outside')
+        fig.update_layout(
+            yaxis_title="Prejuízo (R$)",
+            showlegend=False
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise detalhada por região
+        st.write("**Análise detalhada por região:**")
+        for reg, loss in loss_regions.items():
+            region_data = df[df['region'] == reg]
             
-            # Análise detalhada da região problemática
-            reg_data = df[df['region'] == reg]
-            problematic_cats = reg_data.groupby('category').filter(lambda x: x['profit'].sum() < 0)
+            # Categorias problemáticas nessa região
+            region_cats = region_data.groupby('category')['profit'].sum()
+            problematic_cats = region_cats[region_cats < 0]
+            
             if not problematic_cats.empty:
-                st.caption(f"  Categorias problemáticas em {reg}: {', '.join(problematic_cats['category'].unique())}")
+                cat_list = ", ".join([f"{cat} ({format_brl(abs(loss_cat))})" 
+                                    for cat, loss_cat in problematic_cats.items()])
+                st.write(f"• **{reg}**: Prejuízo total de {format_brl(abs(loss))}")
+                st.caption(f"  Categorias problemáticas: {cat_list}")
+            else:
+                st.write(f"• **{reg}**: Prejuízo de {format_brl(abs(loss))}")
+                
+            # KPIs da região
+            total_sales = region_data['sales'].sum()
+            margin = (loss / total_sales * 100) if total_sales > 0 else 0
+            avg_discount = region_data['discount'].mean()
+            
+            cols = st.columns(3)
+            with cols[0]:
+                st.metric(f"Vendas {reg}", format_brl(total_sales))
+            with cols[1]:
+                st.metric(f"Margem {reg}", f"{margin:.1f}%")
+            with cols[2]:
+                st.metric(f"Desconto médio {reg}", f"{avg_discount:.1f}%")
+                
+    else:
+        st.success("✅ Nenhuma região opera com prejuízo!")
+    
+    # Se não houver nenhum prejuízo, mostrar mensagem geral
+    if loss_categories.empty and loss_regions.empty:
+        st.balloons()
+        st.success("🎉 **Excelente notícia!** Nenhuma categoria ou região opera com prejuízo.")
+        st.info("""
+        **Isso indica que:**
+        1. Todas as categorias estão contribuindo positivamente para o resultado
+        2. Todas as regiões estão operando com lucro
+        3. A estratégia comercial está funcionando bem em toda a operação
+        """)
+    
+    # Mesmo sem prejuízos, mostrar as piores performers
+    elif not loss_categories.empty or not loss_regions.empty:
+        # Mostrar também as categorias/regiões com menor margem (mesmo que positiva)
+        st.divider()
+        st.subheader("📊 Piores Performers (Lucro Positivo, mas Baixo)")
+        
+        # Categorias com menor margem positiva
+        category_stats = df.groupby('category').agg({
+            'sales': 'sum',
+            'profit': 'sum',
+            'quantity': 'count'
+        })
+        category_stats['margin'] = (category_stats['profit'] / category_stats['sales'] * 100)
+        
+        # Filtrar apenas categorias com lucro positivo
+        positive_categories = category_stats[category_stats['profit'] > 0]
+        if not positive_categories.empty:
+            worst_categories = positive_categories.nsmallest(3, 'margin')
+            
+            if len(worst_categories) > 0:
+                st.write("**Categorias com menor margem positiva:**")
+                for idx, (cat, row) in enumerate(worst_categories.iterrows(), 1):
+                    st.write(f"{idx}. **{cat}**: Margem de {row['margin']:.1f}% | Lucro: {format_brl(row['profit'])}")
 
 def analyze_discount_impact(df):
     """4. Descontos: vilão ou aliado?"""
@@ -250,7 +361,7 @@ def analyze_discount_impact(df):
         st.plotly_chart(fig, use_container_width=True)
 
 def analyze_regional_differences(df):
-    """5. Diferenças regionais (CORRIGIDO - sem matplotlib)"""
+    """5. Diferenças regionais"""
     st.subheader("🌍 Análise Regional Comparativa")
     
     regional_stats = df.groupby('region').agg({
