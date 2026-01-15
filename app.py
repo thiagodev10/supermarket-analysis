@@ -1117,7 +1117,7 @@ def main():
     st.divider()
     st.caption(f"📅 Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     st.caption(f"📊 Dados analisados: {len(filtered_df):,} transações | {len(selected_regions)} regiões | {len(selected_categories)} categorias")
-    st.caption("⚠️ **ESTE DASHBOARD MOSTRA A VERDADE, MESMO QUE DÓIA**")
+  
 
 if __name__ == "__main__":
     main()
